@@ -1,3 +1,16 @@
+# large files
+*.csv
+*.txt
+*.json
+*.zip
+spark_output/
+
+# macOS
+.DS_Store
+
+# Intelij
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
