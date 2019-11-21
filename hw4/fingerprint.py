@@ -8,8 +8,8 @@ import unicodedata
 spark = SparkSession \
     .builder \
     .appName("Python Spark") \
+    .master("local[*]") \
     .getOrCreate()
-    # .setMaster("local[*]") \
     #.config("spark.some.config.option", "some-value") \
 spark.sparkContext.setLogLevel('ERROR')
 
@@ -83,7 +83,7 @@ name_sorter = lambda (name, count): (-count, name)
 names = rdd.map(lambda name: (name, 1)).reduceByKey(add)
 names = names.map(lambda (name, count): (token_fingerprint(name), [(name, count)])).reduceByKey(add)
 names = names.map(lambda (token, name_list): (min(name_list, key=name_sorter)[0], sorted(name_list, key=name_sorter)))
-formatted_names = names.map(lambda (first, name_list): '%s:%s' % (first, ','.join(map(lambda (name, count): '%s(%d)' % (name, count), name_list))))
+formatted_names = names.filter(lambda (name, name_list): len(name_list)>1).sortByKey().map(lambda (first, name_list): '%s:%s' % (first, ','.join(map(lambda (name, count): '%s(%d)' % (name, count), name_list))))
 
 print(names.count(), names.take(5))
 with open('cluster.txt', 'w') as fout:
