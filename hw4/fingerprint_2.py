@@ -6,7 +6,7 @@ import sys
 from time import time
 
 
-def worker(input_file, partition=4):
+def worker(input_file, partition=None):
     spark = SparkSession \
         .builder \
         .appName("Python Spark") \
@@ -78,18 +78,20 @@ def worker(input_file, partition=4):
         pass
 
     def name_sorter((name, count)): return (-count, name)
+    indexes = rdd.zipWithIndex().reduceByKey(min).collectAsMap()
+    # print(indexes.items()[:5])
     names = rdd.map(lambda name: (name, 1)).reduceByKey(add)
     names = names.map(lambda (name, count): (
         token_fingerprint(name), [(name, count)])).reduceByKey(add)
 
-    # with open('tokens.txt', 'w') as fout:
-    #     for line in names.sortBy(lambda (token, name_list): (-len(name_list), )).collect():
-    #         fout.write(str(line).encode('utf-8')+'\n')
-    #     fout.close()
+    with open('tokens.txt', 'w') as fout:
+        for line in names.sortBy(lambda (token, name_list): (-len(name_list), min([indexes[name] for name, val in name_list]))).collect():
+            fout.write(str(line).encode('utf-8')+'\n')
+        fout.close()
 
     names = names.map(lambda (token, name_list): (
         min(name_list, key=name_sorter)[0], sorted(name_list, key=name_sorter)))
-    formatted_names = names.filter(lambda (name, name_list): len(name_list) > 1).sortBy(lambda (name, name_list): (-len(name_list), tuple(name_list))).map(
+    formatted_names = names.filter(lambda (name, name_list): len(name_list) > 1).sortBy(lambda (name, name_list): (-len(name_list), min([indexes[name] for name, val in name_list]))).map(
         lambda (first, name_list): '%s:%s' % (first, ','.join(map(lambda (name, count): '%s(%d)' % (name, count), name_list))))
 
     # print(names.count(), names.take(5))
