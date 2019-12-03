@@ -16,8 +16,8 @@ spark.sparkContext.setLogLevel('ERROR')
 
 partition = 8
 
-rdd = spark.read.csv("./steam-store-games/steam.csv", 
-                               header=True).rdd.map(tuple).repartition(partition).map(lambda line: (line[1], 1)).reduceByKey(add).keys()
+rdd = spark.read.csv("./restaurant-and-market-health-inspections.csv", 
+                               header=True).rdd.map(tuple).repartition(partition).map(lambda line: (line[2], 1)).reduceByKey(add).keys()
 
 print(rdd.count())
 
@@ -90,7 +90,7 @@ def n_gram_fingerprint(name, size):
             )
             
     output = ' '.join(sorted(set(
-            [clean_name[i:i+size] for i in range(len(clean_name)-size+1)] if len(clean_name)>size else [clean_name]
+            [clean_name[i:i+size] for i in range(len(clean_name)-size+1)]
         )))
 
     return (output, [name])
