@@ -16,7 +16,7 @@ spark.sparkContext.setLogLevel('ERROR')
 
 partition = 8
 
-rdd = spark.read.csv("./steam-store-games/steam.csv", 
+rdd = spark.read.csv("./dataset/steam.csv", 
                                header=True).rdd.map(tuple).repartition(partition).map(lambda line: (line[1], 1)).reduceByKey(add).keys()
 
 print(rdd.count())
@@ -76,11 +76,11 @@ def token_fingerprint(name):
         clean_name
         )))
 
-    return (output, [name])
-    # if len(output)>0:
-    #     yield (output, [name])
-    # else:
-    #     yield ('None', [])
+    # return (output, [name])
+    if len(output)>0:
+        return (output, [name])
+    else:
+        return (translate(name).lower(), [name])
     pass
 
 def n_gram_fingerprint(name, size):
@@ -93,28 +93,28 @@ def n_gram_fingerprint(name, size):
             [clean_name[i:i+size] for i in range(len(clean_name)-size+1)] if len(clean_name)>size else [clean_name]
         )))
 
-    return (output, [name])
-    # if len(output)>0:
-    #     yield (output, [name])
-    # else:
-    #     yield ('None', [])
+    # return (output, [name])
+    if len(output)>0:
+        return (output, [name])
+    else:
+        return (translate(name).lower(), [name])
     pass
 
 app_names = rdd.map(token_fingerprint).filter(lambda (finger, __): len(finger)>0).reduceByKey(add).sortBy(lambda x:(-len(x[1]), x[0]))#.keys()
 
-print(app_names.count(), app_names.take(5))
+print(app_names.count(), app_names.filter(lambda x:len(x[1])>1).count(), app_names.take(5))
 
-with open('token.csv', 'w') as fout:
+with open('steam_token.csv', 'w') as fout:
     fout.write('fingerprint,names\n')
     for f, n in app_names.collect():
         fout.write(u'{},{}\n'.format(f, ';'.join(n)).encode('utf-8'))
     fout.close()
 
-app_names = rdd.map(lambda line: n_gram_fingerprint(line, 5)).filter(lambda (finger, __): len(finger)>0).reduceByKey(add).sortBy(lambda x:(-len(x[1]), x[0]))#.keys()
+app_names = rdd.map(lambda line: n_gram_fingerprint(line, 6)).filter(lambda (finger, __): len(finger)>0).reduceByKey(add).sortBy(lambda x:(-len(x[1]), x[0]))#.keys()
 
-print(app_names.count(), app_names.take(5))
+print(app_names.count(), app_names.filter(lambda x:len(x[1])>1).count(), app_names.take(5))
 
-with open('n_gram.csv', 'w') as fout:
+with open('steam_n_gram.csv', 'w') as fout:
     fout.write('fingerprint,names\n')
     for f, n in app_names.collect():
         fout.write(u'{},{}\n'.format(f, ';'.join(n)).encode('utf-8'))
