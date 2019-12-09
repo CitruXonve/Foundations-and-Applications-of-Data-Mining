@@ -9,7 +9,7 @@ import unicodedata
 import string
 
 
-def worker(input_file, output_file, partition=8):
+def worker(input_file, output_file, partition=4):
     spark = SparkSession \
         .builder \
         .appName("Python Spark") \
@@ -80,25 +80,23 @@ def worker(input_file, output_file, partition=8):
         if len(output)>0:
             return output
         else:
-            return 'None'
+            return '(blank)'
         pass
 
     def n_gram_fingerprint(name, size):
-        clean_name = re.sub('['+string.punctuation+'\x00-\x1f\x7f-\x9f]+',
+        clean_name = re.sub('[\s'+string.punctuation+'\x00-\x1f\x7f-\x9f]+',
                 '',
                 translate(name).lower()
                 )
                 
-        output = ' '.join(sorted(set(
-                [clean_name[i:i+size] for i in range(len(clean_name)-size+1)] if len(clean_name)>size else [clean_name]
-            )))
-
-        # return output
         # return (output, [name])
-        if len(output)>0:
+        if len(clean_name)>=size:
+            output = ''.join(sorted(set(
+                    [clean_name[i:i+size] for i in range(len(clean_name)-size+1)]
+                )))
             return output
         else:
-            return 'None'
+            return '(blank)'
         pass
 
     def processor(names):
@@ -107,6 +105,8 @@ def worker(input_file, output_file, partition=8):
         hash_num = row * band
 
         def multi_hash(key_values):
+            # print(list(key_values)[:3])
+            # exit(-1)
             def hash_func(x, i): return (3*ord(x) + 11*i) % 90679+1
             for key, values in key_values:
                 # yield (key, [min(map(lambda val: hash_func(val, i), values)) for i in range(1, hash_num+1)])
@@ -116,7 +116,9 @@ def worker(input_file, output_file, partition=8):
             for key, values in key_values:
                 for b in range(band):
                     yield (tuple(values[b*row:(b+1)*row] + [-b]), {key})
-
+        
+        # print(names.count(), names.collect()[:3])
+        # exit(-1)
         signatures = names.mapValues(list).mapPartitions(multi_hash)
 
         similar_names = signatures.mapPartitions(banding).reduceByKey(
@@ -125,9 +127,9 @@ def worker(input_file, output_file, partition=8):
         singles = similar_names.filter(lambda x: len(x[1]) == 1).map(lambda x:(list(x[1])[0], 1)).reduceByKey(add).keys()
 
         similar_names = similar_names.values().flatMap(lambda x: combinations(
-            sorted(x), 2)).map(lambda x: (min(x), {max(x)})).reduceByKey(__or__).map(lambda x:{x[0]} | x[1])
-        print(similar_names.take(5))
-        print(singles.take(5))
+            sorted(x), 2)).map(lambda x: ((min(x), max(x)), 1)).reduceByKey(add).keys()#.map(lambda x: (min(x), {max(x)})).reduceByKey(__or__).map(lambda x:{x[0]} | x[1])
+        print(similar_names.take(3))
+        print(singles.take(3))
         return similar_names.collect(), singles.collect()
 
     with open('lsh_token.csv', 'w') as fout:
@@ -138,7 +140,7 @@ def worker(input_file, output_file, partition=8):
             fout.write(line.encode('utf-8'))
         fout.write(u'\n'.join(singles).encode('utf-8'))
         fout.close()
-    # return
+    # return 
     names = spark.read.csv(input_file,
                              header=True).rdd.map(tuple).repartition(partition).map(lambda line: (line[1], 1)).reduceByKey(add).map(lambda line: (line[0], n_gram_fingerprint(line[0], 5)))
     with open('lsh_n_gram.csv', 'w') as fout:
@@ -155,5 +157,5 @@ if __name__ == '__main__':
     #     print("Invalid arguments!")
     #     exit(-1)
     start_time = time()
-    worker(input_file='./steam-store-games/steam.csv', output_file='lsh.csv')
+    worker(input_file='./dataset/steam.csv', output_file='lsh.csv')
     print('Duration:', time()-start_time)

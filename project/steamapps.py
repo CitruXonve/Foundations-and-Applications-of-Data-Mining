@@ -80,24 +80,23 @@ def token_fingerprint(name):
     if len(output)>0:
         return (output, [name])
     else:
-        return (translate(name).lower(), [name])
+        return ('(blank)', [name])
     pass
 
 def n_gram_fingerprint(name, size):
-    clean_name = re.sub('['+string.punctuation+'\x00-\x1f\x7f-\x9f]+',
+    clean_name = re.sub('[\s'+string.punctuation+'\x00-\x1f\x7f-\x9f]+',
             '',
             translate(name).lower()
             )
             
-    output = ' '.join(sorted(set(
-            [clean_name[i:i+size] for i in range(len(clean_name)-size+1)] if len(clean_name)>size else [clean_name]
-        )))
-
     # return (output, [name])
-    if len(output)>0:
+    if len(clean_name)>=size:
+        output = ''.join(sorted(set(
+                [clean_name[i:i+size] for i in range(len(clean_name)-size+1)]
+            )))
         return (output, [name])
     else:
-        return (translate(name).lower(), [name])
+        return ('(blank)', [name])
     pass
 
 app_names = rdd.map(token_fingerprint).filter(lambda (finger, __): len(finger)>0).reduceByKey(add).sortBy(lambda x:(-len(x[1]), x[0]))#.keys()
@@ -110,7 +109,7 @@ with open('steam_token.csv', 'w') as fout:
         fout.write(u'{},{}\n'.format(f, ';'.join(n)).encode('utf-8'))
     fout.close()
 
-app_names = rdd.map(lambda line: n_gram_fingerprint(line, 6)).filter(lambda (finger, __): len(finger)>0).reduceByKey(add).sortBy(lambda x:(-len(x[1]), x[0]))#.keys()
+app_names = rdd.map(lambda line: n_gram_fingerprint(line, 5)).reduceByKey(add).sortBy(lambda x:(-len(x[1]), x[0]))#.keys()
 
 print(app_names.count(), app_names.filter(lambda x:len(x[1])>1).count(), app_names.take(5))
 
