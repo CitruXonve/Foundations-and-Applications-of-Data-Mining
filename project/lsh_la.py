@@ -20,7 +20,7 @@ def worker(input_file, partition=8):
     spark.sparkContext.setLogLevel('ERROR')
 
     names = spark.read.csv(input_file,
-                             header=True).rdd.map(tuple).repartition(partition).map(lambda line: (line[1], 1)).reduceByKey(add).map(lambda line: (line[0], token_fingerprint(line[0])))
+                             header=True).rdd.map(tuple).repartition(partition).map(lambda line: (line[2], 1)).reduceByKey(add).map(lambda line: (line[0], token_fingerprint(line[0])))
 
     def convert_non_ascii_ch(ch):
         if ch in set(['u00C0', 'u00C1', 'u00C2', 'u00C3', 'u00C4', 'u00C5', 'u00E0', 'u00E1', 'u00E2', 'u00E3', 'u00E4', 'u00E5', 'u0100', 'u0101', 'u0102', 'u0103', 'u0104', 'u0105']):
@@ -134,15 +134,15 @@ def worker(input_file, partition=8):
     plurals, singles = processor(names)
     # print(plurals.take(3))
     # print(singles.take(3))
-    with open('lsh_token.csv', 'w') as fout:
-        # fout.write('userId,movieId,rating\n')
-        for cluster in plurals:
-            line = u','.join(cluster)+u'\n'
-            fout.write(line.encode('utf-8'))
-        fout.write(u'\n'.join(singles).encode('utf-8'))
-        fout.close()
+    # with open('lsh_token.csv', 'w') as fout:
+    #     # fout.write('userId,movieId,rating\n')
+    #     for cluster in plurals:
+    #         line = u','.join(cluster)+u'\n'
+    #         fout.write(line.encode('utf-8'))
+    #     fout.write(u'\n'.join(singles).encode('utf-8'))
+    #     fout.close()
 
-    with open('clusters_steam_token.json', 'r') as fin:
+    with open('clusters_la_token.json', 'r') as fin:
         text = fin.read()[:]
         # print(json.loads(text)['clusters'][:2])
         samples = spark.sparkContext.parallelize(json.loads(text)['clusters']).map(lambda x:x['choices']).map(lambda x:[item['v'] for item in x])
@@ -157,7 +157,7 @@ def worker(input_file, partition=8):
     # return 
     gram_size = 6
     names = spark.read.csv(input_file,
-                             header=True).rdd.map(tuple).repartition(partition).map(lambda line: (line[1], 1)).reduceByKey(add).map(lambda line: (line[0], n_gram_fingerprint(line[0], gram_size)))
+                             header=True).rdd.map(tuple).repartition(partition).map(lambda line: (line[2], 1)).reduceByKey(add).map(lambda line: (line[0], n_gram_fingerprint(line[0], gram_size)))
     plurals, singles = processor(names)
     # print(plurals.take(3))
     with open('lsh_n_gram.csv', 'w') as fout:
@@ -167,7 +167,7 @@ def worker(input_file, partition=8):
             fout.write(line.encode('utf-8'))
         fout.write(u'\n'.join(singles).encode('utf-8'))
         fout.close()
-    with open('clusters_steam_n_gram_{}.json'.format(gram_size), 'r') as fin:
+    with open('clusters_la_n_gram_{}.json'.format(gram_size), 'r') as fin:
         text = fin.read()[:]
         # print(json.loads(text)['clusters'][:2])
         samples = spark.sparkContext.parallelize(json.loads(text)['clusters']).map(lambda x:x['choices']).map(lambda x:[item['v'] for item in x])
@@ -184,5 +184,5 @@ if __name__ == '__main__':
     #     print("Invalid arguments!")
     #     exit(-1)
     start_time = time()
-    worker(input_file='./dataset/steam.csv')
+    worker(input_file='restaurant-and-market-health-inspections.csv')
     print('Duration:', time()-start_time)
